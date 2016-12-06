@@ -27,18 +27,18 @@ int main(int argc, char *argv[]) {
 	parse(argv[1], &proclist);
 
 	// initialize memory
-	// memory m;
-	// init_memory(&m);
+	memory m;
+	init_memory(&m);
 
-	// add_memory_next_fit(&m, 'A', 200);
+	add_memory_next_fit(&m, 'A', 200);
 
-	// print_memory(&m);
+	print_memory(&m);
 
 
 	print_process_list(&proclist);
 	free_process_list(&proclist);
 
-	// free(m.data);
+	free_memory(&m);
 
 	return EXIT_SUCCESS;
 }

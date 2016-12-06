@@ -12,6 +12,10 @@ void init_memory(memory *mem) {
 	mem->most_recent_i = 0;
 }
 
+void free_memory(memory *mem) {
+	free(mem->data);
+}
+
 /* 	copies process ID into memory from start to end.
 
 	this function assumes the partition between start and
