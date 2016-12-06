@@ -22,13 +22,20 @@ typedef struct memory memory;
 
 struct memory {
 	char *data;
-	int free_storage;
 	int total_storage;
+	int free_storage;
 	int most_recent_i;
 };
 
 void init_memory(memory *mem);
+
+void copy_memory(memory *mem, const char p_id, const int start, const int end);
+
+/* algorithms */
+void add_memory_next_fit(memory *mem, const char p_id, const int p_mem);
+void add_memory_best_fit(memory *mem, const char p_id, const int p_mem);
+void add_memory_worst_fit(memory *mem, const char p_id, const int p_mem);
+
 void print_memory(memory *mem);
-void add_memory_next_fit(memory *mem, char p_id, int p_mem);
 
 #endif //MEMORY_H_
