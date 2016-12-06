@@ -30,6 +30,7 @@ struct memory {
 void init_memory(memory *mem);
 void free_memory(memory *mem);
 void copy_memory(memory *mem, const char p_id, const int start, const int end);
+void remove_memory(memory *mem, const char p_id, const int p_mem);
 
 /* algorithms */
 void add_memory_next_fit(memory *mem, const char p_id, const int p_mem);

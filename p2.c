@@ -42,6 +42,7 @@ void test_memory() {
 
 	add_memory_next_fit(&m, 'A', 250);
 	add_memory_next_fit(&m, 'B', 1);
+	remove_memory(&m, 'A', 250);
 
 	print_memory(&m);
 
