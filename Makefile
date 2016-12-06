@@ -1,2 +1,2 @@
 all:
-	gcc -g -Wall p2.c process.c -o a
+	gcc -g -Wall p2.c process.c memory.c -o a

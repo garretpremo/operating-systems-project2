@@ -4,10 +4,10 @@
 #include <string.h>
 
 #include "process.h"
+#include "memory.h"
 
 #define FRAMES 32
 #define LINES 8
-#define PROC_LENGTH 10
 
 void parse(const char *filename, process_list *proclist);
 
@@ -23,7 +23,17 @@ int main(int argc, char *argv[]) {
 	process_list proclist;
 	proclist.size = 0;
 
+	printf("we have a process that needs 56 memory\n");
+	float fl = (float)56/32;
+	printf("56/32 = %f\n", fl);
+	printf("%f*32 = %d\n", fl,(int)(fl*32));
+
+
 	parse(argv[1], &proclist);
+
+	memory mem;
+	init_memory(&mem);
+	print_memory(&mem);
 
 	print_process_list(&proclist);
 	free_process_list(&proclist);
