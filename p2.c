@@ -9,6 +9,7 @@
 #define FRAMES 32
 #define LINES 8
 
+void test_memory();
 void parse(const char *filename, process_list *proclist);
 
 int num_processes = -1;
@@ -26,22 +27,28 @@ int main(int argc, char *argv[]) {
 	// parse the input file
 	parse(argv[1], &proclist);
 
-	// initialize memory
-	memory m;
-	init_memory(&m);
-
-	add_memory_next_fit(&m, 'A', 200);
-
-	print_memory(&m);
-
+	test_memory();
 
 	print_process_list(&proclist);
 	free_process_list(&proclist);
 
-	free_memory(&m);
-
 	return EXIT_SUCCESS;
 }
+
+void test_memory() {
+	// initialize memory
+	memory m;
+	init_memory(&m);
+
+	add_memory_next_fit(&m, 'A', 250);
+	add_memory_next_fit(&m, 'B', 1);
+
+	print_memory(&m);
+
+	free_memory(&m);
+}
+
+
 
 void parse(const char *filename, process_list *proclist) {
 	FILE *f;
