@@ -19,7 +19,7 @@ void free_process_list(process_list *proclist) {
 }
 
 void new_process(process *p) {
-	p->processes = (char **)calloc(1, sizeof(char *));
+	p->processes = (char **)calloc(2, sizeof(char *));
 	p->num_procs = 0;
 	p->mem = -1;
 	p->id = ' ';
@@ -40,26 +40,21 @@ void copy_process(process *p, process *q) {
 	int i;
 	for(i = 0; i < q->num_procs; i++) {
 		p->processes[i] = (char *)calloc(strlen(q->processes[i])+1, sizeof(char));
-		memcpy(p->processes[i], q->processes[i], strlen(q->processes[i]));
+		memcpy((p->processes[i]), q->processes[i], strlen(q->processes[i])+1);
 	}
 	p->num_procs = q->num_procs;
 	p->mem = q->mem;
 	p->id = q->id;
 }
 
-void copy_string_into_process(process *p, char **string, size_t *size) {
-	p->processes[p->num_procs] = (char *)calloc(*size, sizeof(char));
+void copy_string_into_process(process *p, const char *string, const size_t size) {
+	p->processes[p->num_procs] = (char *)calloc(size+1, sizeof(char));
 
-	memcpy(p->processes[p->num_procs], *string, *size);
+	memcpy((p->processes[p->num_procs]), string, size+1);
 
 	p->num_procs++;
 
 	p->processes = realloc(p->processes, (p->num_procs+1)*sizeof(char *));
-
-	free(*string);
-
-	*string = (char *)calloc(1, sizeof(char));
-	*size = 0;
 }
 
 void free_process(process *p) {

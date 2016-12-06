@@ -3,8 +3,8 @@
 #include <stdbool.h>
 #include <string.h>
 
-#include "process.h"
 #include "memory.h"
+#include "process.h"
 
 #define FRAMES 32
 #define LINES 8
@@ -23,20 +23,22 @@ int main(int argc, char *argv[]) {
 	process_list proclist;
 	proclist.size = 0;
 
-	printf("we have a process that needs 56 memory\n");
-	float fl = (float)56/32;
-	printf("56/32 = %f\n", fl);
-	printf("%f*32 = %d\n", fl,(int)(fl*32));
-
-
+	// parse the input file
 	parse(argv[1], &proclist);
 
-	memory mem;
-	init_memory(&mem);
-	print_memory(&mem);
+	// initialize memory
+	// memory m;
+	// init_memory(&m);
+
+	// add_memory_next_fit(&m, 'A', 200);
+
+	// print_memory(&m);
+
 
 	print_process_list(&proclist);
 	free_process_list(&proclist);
+
+	// free(m.data);
 
 	return EXIT_SUCCESS;
 }
@@ -56,13 +58,16 @@ void parse(const char *filename, process_list *proclist) {
 	process p;
 	new_process(&p);
 
-	char *num_procs = (char *)calloc(1, sizeof(char));
+	size_t num_procs_max_size = 10;
+	char *num_procs = (char *)calloc(num_procs_max_size, sizeof(char));
 	size_t num_procs_size = 0;
 
-	char *mem = (char *)calloc(1, sizeof(char));
+	size_t mem_max_size = 10;
+	char *mem = (char *)calloc(mem_max_size, sizeof(char));
 	size_t mem_size = 0;
 
-	char *process = (char *)calloc(1, sizeof(char));
+	size_t process_max_size = 10;
+	char *process = (char *)calloc(10, sizeof(char));
 	size_t process_size = 0;
 
 	bool comment = false;
@@ -71,7 +76,6 @@ void parse(const char *filename, process_list *proclist) {
 	char c;
 
 	while((c = getc(f)) != EOF) {
-		printf("%c",c);
 		switch(c) {
 			case '#':
 				comment = true;
@@ -89,13 +93,19 @@ void parse(const char *filename, process_list *proclist) {
 				else {
 					process_id_found = false;
 
-					copy_string_into_process(&p, &process, &process_size);
+					copy_string_into_process(&p, process, process_size);
+
+					// reset process
+					free(process);
+					process = (char *)calloc(process_max_size, sizeof(char));
+					process_size = 0;
 
 					// copy data over
 					copy_process_into_process_list(proclist, &p);
 
+					// reset memory
 					free(mem);
-					mem = (char *)calloc(1, sizeof(char));
+					mem = (char *)calloc(mem_max_size, sizeof(char));
 					mem_size = 0;
 				}
 				continue;
@@ -109,7 +119,12 @@ void parse(const char *filename, process_list *proclist) {
 					p.mem = atoi(mem);
 				}
 				else {
-					copy_string_into_process(&p, &process, &process_size);
+					copy_string_into_process(&p, process, process_size);
+
+					// reset process
+					free(process);
+					process = (char *)calloc(process_max_size, sizeof(char));
+					process_size = 0;
 				}
 				continue;
 			default:
@@ -118,30 +133,35 @@ void parse(const char *filename, process_list *proclist) {
 				else if(num_processes == -1) {
 					num_procs[num_procs_size] = c;
 					num_procs_size++;
-					num_procs = realloc(num_procs, ((num_procs_size+2)*sizeof(char)));
-					num_procs[num_procs_size+2] = '\0';
+					if(num_procs_max_size == num_procs_size) {
+						num_procs_max_size = num_procs_max_size*2;
+						num_procs = realloc(num_procs, num_procs_max_size*sizeof(char));
+					}
 				}
 				else if(p.id == ' ') {
 					p.id = c;
 				} else if(p.mem == -1) {
 					mem[mem_size] = c;
 					mem_size++;
-					mem = realloc(mem, (mem_size+2)*sizeof(char));
-					mem[mem_size+2] = '\0';
+					if(mem_max_size == mem_size) {
+						mem_max_size = mem_max_size*2;
+						mem = realloc(mem, mem_max_size*sizeof(char));
+					}
 				}
 				else {
 					process[process_size] = c;
 					process_size++;
-					process = realloc(process, ((process_size+2)*sizeof(char)));
-					process[process_size+2] = '\0';
+					if(process_max_size == process_size) {
+						process_max_size = process_max_size*2;
+						process = realloc(process, process_max_size*sizeof(char));
+					}
+					process[process_size] = '\0';
 				}
 		}
 	}
 	// get the final recorded process after EOF
-	copy_string_into_process(&p, &process, &process_size);
+	copy_string_into_process(&p, process, process_size);
 	copy_process_into_process_list(proclist, &p);
-
-	printf("\n");
 
 	// cleanup	
 	fclose(f);

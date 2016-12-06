@@ -24,7 +24,7 @@ void copy_process_into_process_list(process_list *proclist, process *p);
 void copy_process(process *p, process *q);
 void free_process(process *p);
 
-void copy_string_into_process(process *p, char **string, size_t *size);
+void copy_string_into_process(process *p, const char *string, const size_t size);
 
 void print_process_list(process_list *proclist);
 
