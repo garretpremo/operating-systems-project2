@@ -29,6 +29,7 @@ int main(int argc, char *argv[]) {
 	// parse the input file
 	parse(argv[1], &proclist);
 
+	// test
 	test_memory();
 
 	// print_process_list(&proclist);
@@ -42,47 +43,43 @@ void test_memory() {
 	memory m;
 	init_memory(&m);
 
+	int t = 0;
+
 	m.values = calloc(num_processes, sizeof(process_values));
 
-	// print_memory(&m);	
-	add_memory_next_fit(&m, 'C', 110);
-	add_memory_next_fit(&m, 'E', 10);
-	// print_memory(&m);
-	add_memory_next_fit(&m, 'A', 10);
-	// print_memory(&m);
-	add_memory_next_fit(&m, 'D', 9);
-	// print_memory(&m);
-	add_memory_next_fit(&m, 'B', 110);
-	print_memory(&m);
+	print_memory(&m);	
 
+	// test add_memory_next_fit
+	add_memory_next_fit(&m, t, 'C', 110);
+	add_memory_next_fit(&m, t, 'E', 10);
+	add_memory_next_fit(&m, t, 'B', 110);
+	add_memory_next_fit(&m, t, 'A', 15);
+	add_memory_next_fit(&m, t, 'D', 9);
+
+
+	// test remove_memory
 	remove_memory(&m, 'E');
-	remove_memory(&m, 'D');
-
-	// print_values(&m);
+	remove_memory(&m, 'A');
 
 
-	// process_values pval;
-	// get_value(&m, 'A', &pval);
-	// printf("got A\n");
-	// print_value(&pval);
+	// test add worst and best fits
+	add_memory_worst_fit(&m, t, 'G', 6);
 
-	print_memory(&m);
+	add_memory_best_fit(&m, t, 'F', 9);
+	add_memory_worst_fit(&m, t, 'F', 9);
 
-
-	add_memory_best_fit(&m, 'E', 6);
-
-	print_memory(&m);
-
-	add_memory_best_fit(&m, 'F', 15);
 	// add_memory_next_fit(&m, 'D', 120);
 	// add_memory_next_fit(&m, 'E', 10);
 
+
+	// test defragment
+	defragment_memory(&m);
+
 	print_memory(&m);
 
+	// cleanup
 	free_memory(&m);
 }
-
-
 
 void parse(const char *filename, process_list *proclist) {
 	FILE *f;

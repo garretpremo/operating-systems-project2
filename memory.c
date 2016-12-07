@@ -41,7 +41,7 @@ void remove_memory(memory *mem, const char p_id) {
 		mem->free_storage += value.size;
 
 		remove_value(mem, p_id);
-		printf("removed %d memory units; %d remaining\n", value.size, mem->free_storage);
+		printf("removed %d memory units; %d total remaining\n", value.size, mem->free_storage);
 	}
 }
 
@@ -85,8 +85,6 @@ void defragment_memory(memory *mem) {
 		else if(blank_space != 0 ) {
 			int start = i - blank_space;
 			int used = memory_used(mem, mem->data[i]);
-			printf("%c used %d and should start at %d\n", mem->data[i], used, start);
-
 
 			copy_memory(mem, mem->data[i], start, start + used);
 			edit_value(mem, mem->data[i], start, start + used);
@@ -98,7 +96,6 @@ void defragment_memory(memory *mem) {
 			blank_space = 0;
 		}
 	}
-	printf("%d\n", max_end);
 	mem->most_recent_i = max_end;
 	pthread_mutex_unlock(&mutex);
 }
@@ -110,14 +107,16 @@ void defragment_memory(memory *mem) {
 	p_id: the id of the process that needs to store memory
 	p_mem: the amount of memory the process needs
 */
-void add_memory_next_fit(memory *mem, const char p_id, const int p_mem) {
+void add_memory_next_fit(memory *mem, int t, const char p_id, const int p_mem) {
 	int scanned = 0;
 	int free_mem = 0;
 	int max_partition_size = 0;
 	bool stored = false;
 
+	printf("time %dms: Process %c arrived (requires %d frames)\n", t, p_id, p_mem);
+
 	if(!enough_memory(mem, p_mem)) {
-		printf("not enough storage for %c, moving to next process\n", p_id);
+		printf("time %dms: not enough storage for %c, moving to next process\n", t, p_id);
 		return;
 	}
 
@@ -144,12 +143,13 @@ void add_memory_next_fit(memory *mem, const char p_id, const int p_mem) {
 		}
 	}
 	if(stored) {
-		printf("stored %d memory units; %d remaining\n", p_mem, mem->free_storage);
+		printf("time %dms: Placed process %c:\n", t, p_id);
+		print_memory(mem);
 	}
 	else if(max_partition_size < p_mem) {
-		printf("no sufficient partition size; defragmenting\n");
+		printf("time %dms: no sufficient partition size; defragmenting\n", t);
 		defragment_memory(mem);
-		add_memory_next_fit(mem, p_id, p_mem);
+		add_memory_next_fit(mem, t, p_id, p_mem);
 	}
 }
 
@@ -160,14 +160,16 @@ void add_memory_next_fit(memory *mem, const char p_id, const int p_mem) {
 	p_id: the id of the process that needs to store memory
 	p_mem: the amount of memory the process needs
 */
-void add_memory_best_fit(memory *mem, const char p_id, const int p_mem) {
+void add_memory_best_fit(memory *mem, int t, const char p_id, const int p_mem) {
 	int scanned = 0;
 	int free_mem = 0;
 	int start = -1;
 	int min_partition_size = mem->total_storage;
 
+	printf("time %dms: Process %c arrived (requires %d frames)\n", t, p_id, p_mem);
+
 	if(!enough_memory(mem, p_mem)) {
-		printf("not enough storage for %c, moving to next process\n", p_id);
+		printf("time %dms: not enough storage for %c, moving to next process\n", t, p_id);
 		return;
 	}
 
@@ -176,37 +178,41 @@ void add_memory_best_fit(memory *mem, const char p_id, const int p_mem) {
 		if(mem->data[i] == '.') { 
 			free_mem++; 
 		}
-		if(mem->data[i] == p_id || i+1 == mem->total_storage) {
+		if(mem->data[i] != '.' || i+1 == mem->total_storage) {
 			int temp = min_partition_size;
-			if(free_mem >= p_mem)
+
+			if(free_mem >= p_mem) {
 				min_partition_size = min(free_mem, min_partition_size);
 
-			if(min_partition_size < temp) {
-				start = i - min_partition_size;
+				if(min_partition_size < temp || start < 0){
+					start = (i - min_partition_size);
+				}
+				else if (free_mem == temp && temp != mem->total_storage){
+					start = min(start, i - min_partition_size);
+				}
 			}
-
+			free_mem = 0;
 			if(i+1 == mem->total_storage) {
 				i = -1;
-				free_mem = 0;
 			}
 		}
 	}
 
-	if(start >= 0 && p_mem < min_partition_size) {
+	if(start >= 0 && p_mem <= min_partition_size) {
+
 		copy_memory(mem, p_id, start, start + p_mem);
 		mem->most_recent_i = start+p_mem;
 		mem->free_storage -= p_mem;
 		init_value(&(mem->values[mem->stored_procs]), p_id, start, p_mem);
-		print_value(&(mem->values[mem->stored_procs]));
 		mem->stored_procs++;
 
-		printf("stored %d memory units; %d remaining\n", p_mem, mem->free_storage);
+		printf("time %dms: Placed process %c:\n", t, p_id);
+		print_memory(mem);
 	}
 	else if(min_partition_size < p_mem || min_partition_size == mem->total_storage) {
-		printf("no sufficient partition size; defragmenting\n");
+		printf("time %dms: No sufficient partition size; defragmenting\n", t);
 		defragment_memory(mem);
-		print_memory(mem);
-		add_memory_best_fit(mem, p_id, p_mem);
+		add_memory_best_fit(mem, t, p_id, p_mem);
 	}
 }
 
@@ -217,8 +223,79 @@ void add_memory_best_fit(memory *mem, const char p_id, const int p_mem) {
 	p_id: the id of the process that needs to store memory
 	p_mem: the amount of memory the process needs
 */
-void add_memory_worst_fit(memory *mem, const char p_id, const int p_mem) {
+void add_memory_worst_fit(memory *mem, int t, const char p_id, const int p_mem) {
+	int scanned = 0;
 
+	// consecutive free memory
+	int free_mem = 0;
+
+	int start = -1;
+	int max_partition_size = 0;
+
+
+	printf("time %dms: Process %c arrived (requires %d frames)\n", t, p_id, p_mem);
+
+	// ensure we have enough available memory to store this process
+	if(!enough_memory(mem, p_mem)) {
+		printf("time %dms: not enough storage for %c, moving to next process\n", t,p_id);
+		return;
+	}
+
+	int i;
+
+	// look for where to place memory
+	for(i = mem->most_recent_i; i < mem->total_storage && scanned < mem->total_storage; i++, scanned++) {
+		// record consecutive free memory slots
+		if(mem->data[i] == '.') { 
+			free_mem++; 
+		}
+		// not free memory or end of memory
+		if(mem->data[i] != '.' || i+1 == mem->total_storage) {
+			int temp = max_partition_size;
+			if(free_mem >= p_mem) {
+				max_partition_size = max(free_mem, max_partition_size);
+
+				// set starting point of where the memory should be placed
+				if(max_partition_size > temp || start < 0)
+					start = i - max_partition_size;
+				else if (free_mem == temp && free_mem > 0) {
+					start = min(start, i - max_partition_size);
+				}
+			}
+			free_mem = 0;
+
+			// go back to the beginning if we're at the end
+			// and haven't seen every element
+			if(i+1 == mem->total_storage)
+				i = -1;
+		}
+	}
+	// found a starting point and a big enough partition size
+	if(start >= 0 && p_mem <= max_partition_size) {
+
+		// copy the memory into the partition
+		copy_memory(mem, p_id, start, start + p_mem);
+
+		// record the most recently stored data index
+		mem->most_recent_i = start+p_mem;
+
+		// record that there's less total free storage
+		mem->free_storage -= p_mem;
+
+		// record the id, start, and size values of the proc
+		init_value(&(mem->values[mem->stored_procs]), p_id, start, p_mem);
+
+		// increment the total number of processes in memory
+		mem->stored_procs++;
+
+		printf("time %dms: Placed process %c:\n", t, p_id);
+		print_memory(mem);
+	}
+	else {
+		printf("no sufficient partition size; defragmenting\n");
+		defragment_memory(mem);
+		add_memory_best_fit(mem, t, p_id, p_mem);
+	}
 }
 
 
