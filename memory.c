@@ -82,19 +82,23 @@ void defragment_memory(memory *mem) {
 	for(i = 0; i < mem->total_storage; i++) {
 		if(mem->data[i] == '.')
 			blank_space++;
-		else if(blank_space != 0) {
+		else if(blank_space != 0 ) {
 			int start = i - blank_space;
 			int used = memory_used(mem, mem->data[i]);
+			printf("%c used %d and should start at %d\n", mem->data[i], used, start);
+
 
 			copy_memory(mem, mem->data[i], start, start + used);
 			edit_value(mem, mem->data[i], start, start + used);
 			max_end = max(max_end, start + used);
 			
 			copy_memory(mem, '.', start + used, i+used);
+			i = start + used;
 			i--;
 			blank_space = 0;
 		}
 	}
+	printf("%d\n", max_end);
 	mem->most_recent_i = max_end;
 	pthread_mutex_unlock(&mutex);
 }
@@ -136,18 +140,16 @@ void add_memory_next_fit(memory *mem, const char p_id, const int p_mem) {
 		}
 		if(i+1 == mem->total_storage) {
 			i = -1;
+			free_mem = 0;
 		}
 	}
 	if(stored) {
 		printf("stored %d memory units; %d remaining\n", p_mem, mem->free_storage);
-		// printf("found a max partition size of %d\n", max_partition_size);
 	}
 	else if(max_partition_size < p_mem) {
 		printf("no sufficient partition size; defragmenting\n");
 		defragment_memory(mem);
-		print_memory(mem);
 		add_memory_next_fit(mem, p_id, p_mem);
-		return;
 	}
 }
 
@@ -159,10 +161,52 @@ void add_memory_next_fit(memory *mem, const char p_id, const int p_mem) {
 	p_mem: the amount of memory the process needs
 */
 void add_memory_best_fit(memory *mem, const char p_id, const int p_mem) {
+	int scanned = 0;
+	int free_mem = 0;
+	int start = -1;
+	int min_partition_size = mem->total_storage;
 
 	if(!enough_memory(mem, p_mem)) {
 		printf("not enough storage for %c, moving to next process\n", p_id);
 		return;
+	}
+
+	int i;
+	for(i = mem->most_recent_i; i < mem->total_storage && scanned < mem->total_storage; i++, scanned++) {
+		if(mem->data[i] == '.') { 
+			free_mem++; 
+		}
+		if(mem->data[i] == p_id || i+1 == mem->total_storage) {
+			int temp = min_partition_size;
+			if(free_mem >= p_mem)
+				min_partition_size = min(free_mem, min_partition_size);
+
+			if(min_partition_size < temp) {
+				start = i - min_partition_size;
+			}
+
+			if(i+1 == mem->total_storage) {
+				i = -1;
+				free_mem = 0;
+			}
+		}
+	}
+
+	if(start >= 0 && p_mem < min_partition_size) {
+		copy_memory(mem, p_id, start, start + p_mem);
+		mem->most_recent_i = start+p_mem;
+		mem->free_storage -= p_mem;
+		init_value(&(mem->values[mem->stored_procs]), p_id, start, p_mem);
+		print_value(&(mem->values[mem->stored_procs]));
+		mem->stored_procs++;
+
+		printf("stored %d memory units; %d remaining\n", p_mem, mem->free_storage);
+	}
+	else if(min_partition_size < p_mem || min_partition_size == mem->total_storage) {
+		printf("no sufficient partition size; defragmenting\n");
+		defragment_memory(mem);
+		print_memory(mem);
+		add_memory_best_fit(mem, p_id, p_mem);
 	}
 }
 

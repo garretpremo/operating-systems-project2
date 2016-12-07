@@ -44,16 +44,21 @@ void test_memory() {
 
 	m.values = calloc(num_processes, sizeof(process_values));
 
-	add_memory_next_fit(&m, 'C', 10);
-	add_memory_next_fit(&m, 'A', 110);
-	add_memory_next_fit(&m, 'D', 10);
+	// print_memory(&m);	
+	add_memory_next_fit(&m, 'C', 110);
+	add_memory_next_fit(&m, 'E', 10);
+	// print_memory(&m);
+	add_memory_next_fit(&m, 'A', 10);
+	// print_memory(&m);
+	add_memory_next_fit(&m, 'D', 9);
+	// print_memory(&m);
 	add_memory_next_fit(&m, 'B', 110);
 	print_memory(&m);
 
-	remove_memory(&m, 'C');
+	remove_memory(&m, 'E');
 	remove_memory(&m, 'D');
 
-	print_values(&m);
+	// print_values(&m);
 
 
 	// process_values pval;
@@ -63,8 +68,12 @@ void test_memory() {
 
 	print_memory(&m);
 
-	add_memory_next_fit(&m, 'E', 30);
 
+	add_memory_best_fit(&m, 'E', 6);
+
+	print_memory(&m);
+
+	add_memory_best_fit(&m, 'F', 15);
 	// add_memory_next_fit(&m, 'D', 120);
 	// add_memory_next_fit(&m, 'E', 10);
 
