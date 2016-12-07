@@ -9,6 +9,8 @@
 #define FRAMES 32
 #define LINES 8
 
+#define t_memmove 1
+
 void test_memory();
 void parse(const char *filename, process_list *proclist);
 
@@ -29,7 +31,7 @@ int main(int argc, char *argv[]) {
 
 	test_memory();
 
-	print_process_list(&proclist);
+	// print_process_list(&proclist);
 	free_process_list(&proclist);
 
 	return EXIT_SUCCESS;
@@ -40,9 +42,31 @@ void test_memory() {
 	memory m;
 	init_memory(&m);
 
-	add_memory_next_fit(&m, 'A', 250);
-	add_memory_next_fit(&m, 'B', 1);
-	remove_memory(&m, 'A', 250);
+	m.values = calloc(num_processes, sizeof(process_values));
+
+	add_memory_next_fit(&m, 'C', 10);
+	add_memory_next_fit(&m, 'A', 110);
+	add_memory_next_fit(&m, 'D', 10);
+	add_memory_next_fit(&m, 'B', 110);
+	print_memory(&m);
+
+	remove_memory(&m, 'C');
+	remove_memory(&m, 'D');
+
+	print_values(&m);
+
+
+	// process_values pval;
+	// get_value(&m, 'A', &pval);
+	// printf("got A\n");
+	// print_value(&pval);
+
+	print_memory(&m);
+
+	add_memory_next_fit(&m, 'E', 30);
+
+	// add_memory_next_fit(&m, 'D', 120);
+	// add_memory_next_fit(&m, 'E', 10);
 
 	print_memory(&m);
 

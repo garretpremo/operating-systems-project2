@@ -1,14 +1,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <pthread.h>
 #include <string.h>
 #include <math.h>
 #include "memory.h"
 #include "util.h"
 
+pthread_mutex_t mutex;
+
 void init_memory(memory *mem) {
 	mem->data = (char *)calloc(TOTAL_MEMORY, sizeof(char));
 	memset(mem->data, '.', TOTAL_MEMORY);
+	mem->stored_procs = 0;
 	mem->total_storage = TOTAL_MEMORY;
 	mem->free_storage = mem->total_storage;
 	mem->most_recent_i = 0;
@@ -16,6 +20,7 @@ void init_memory(memory *mem) {
 
 void free_memory(memory *mem) {
 	free(mem->data);
+	free(mem->values);
 }
 
 /* 	copies process ID into memory from start to end.
@@ -28,21 +33,70 @@ void copy_memory(memory *mem, const char p_id, const int start, const int end) {
 }
 
 /*	removes process from memory  */
-void remove_memory(memory *mem, const char p_id, const int p_mem) {
-	int i, found;
-	for(i = 0, found = 0; i < TOTAL_MEMORY; i++) {
-		if(mem->data[i] == p_id) {
-			found++;
-		} else {
-			if(found == p_mem) {
-				copy_memory(mem, '.', i-p_mem, i);
-				mem->free_storage += p_mem;
-				break;
-			}
-			continue;
+void remove_memory(memory *mem, const char p_id) {
+	process_values value;
+	get_value(mem, p_id, &value);
+	if(value.id == p_id && value.start >= 0 && value.size >= 0) {
+		copy_memory(mem, '.', value.start, value.start + value.size);
+		mem->free_storage += value.size;
+
+		remove_value(mem, p_id);
+		printf("removed %d memory units; %d remaining\n", value.size, mem->free_storage);
+	}
+}
+
+/* 	returns the amount of memory a process is using  */
+int memory_used(memory *mem, const char p_id) {
+	process_values value;
+	get_value(mem, p_id, &value);
+	if(value.size)
+		return value.size;
+	return 0;
+}
+
+/* 	returns the first place of the process  */
+int memory_start(memory *mem, const char p_id) {
+	process_values value;
+	get_value(mem, p_id, &value);
+	if(value.start)
+		return value.start;
+	return 0;
+}
+
+/*	returns the last place of the process  */
+int memory_end(memory *mem, const char p_id) {
+	return memory_start(mem, p_id)+memory_used(mem, p_id)-1;
+}
+
+/*  returns true if there is enough free storage for the process  */
+bool enough_memory(const memory *mem, const int p_mem) {
+	return p_mem <= mem->free_storage;
+}
+
+/*	defragments memory  */
+void defragment_memory(memory *mem) {
+	pthread_mutex_lock(&mutex);
+	int i;
+	int blank_space = 0;
+	int max_end = 0;
+	for(i = 0; i < mem->total_storage; i++) {
+		if(mem->data[i] == '.')
+			blank_space++;
+		else if(blank_space != 0) {
+			int start = i - blank_space;
+			int used = memory_used(mem, mem->data[i]);
+
+			copy_memory(mem, mem->data[i], start, start + used);
+			edit_value(mem, mem->data[i], start, start + used);
+			max_end = max(max_end, start + used);
+			
+			copy_memory(mem, '.', start + used, i+used);
+			i--;
+			blank_space = 0;
 		}
 	}
-	printf("removed %d memory units; %d remaining\n", p_mem, mem->free_storage);
+	mem->most_recent_i = max_end;
+	pthread_mutex_unlock(&mutex);
 }
 
 /* 	next fit memory algorithm. process is placed in the first
@@ -55,28 +109,46 @@ void remove_memory(memory *mem, const char p_id, const int p_mem) {
 void add_memory_next_fit(memory *mem, const char p_id, const int p_mem) {
 	int scanned = 0;
 	int free_mem = 0;
-	int max_free_mem = 0;
+	int max_partition_size = 0;
+	bool stored = false;
+
+	if(!enough_memory(mem, p_mem)) {
+		printf("not enough storage for %c, moving to next process\n", p_id);
+		return;
+	}
 
 	int i;
-	for(i = mem->most_recent_i; i < TOTAL_MEMORY || scanned < TOTAL_MEMORY; i++, scanned++) {
-		if(i == TOTAL_MEMORY) {
-			i = 0;
+	for(i = mem->most_recent_i; i < mem->total_storage && scanned < mem->total_storage; i++, scanned++) {
+		if(free_mem == p_mem && !stored) {
+			stored = true;
+			copy_memory(mem, p_id, i-p_mem, i);
+			mem->most_recent_i = i;
+			mem->free_storage -= p_mem;
+			init_value(&(mem->values[mem->stored_procs]), p_id, i-p_mem, p_mem);
+			mem->stored_procs++;
 		}
 		if(mem->data[i] == '.') { 
 			free_mem++; 
-			if(free_mem == p_mem) {
-				copy_memory(mem, p_id, i-p_mem+1, i+1);
-				mem->most_recent_i = i;
-				mem->free_storage -= p_mem;
-				break;
-			}
+			
 		} else {
-			max_free_mem = max(free_mem, max_free_mem);
+			max_partition_size = max(free_mem, max_partition_size);
 			free_mem = 0;
 		}
+		if(i+1 == mem->total_storage) {
+			i = -1;
+		}
 	}
-	printf("stored %d memory units; %d remaining\n", p_mem, mem->free_storage);
-	printf("found a max partition size of %d\n", max_free_mem);
+	if(stored) {
+		printf("stored %d memory units; %d remaining\n", p_mem, mem->free_storage);
+		// printf("found a max partition size of %d\n", max_partition_size);
+	}
+	else if(max_partition_size < p_mem) {
+		printf("no sufficient partition size; defragmenting\n");
+		defragment_memory(mem);
+		print_memory(mem);
+		add_memory_next_fit(mem, p_id, p_mem);
+		return;
+	}
 }
 
 /*	best fit memory algorithm. process is placed in the smallest
@@ -88,6 +160,10 @@ void add_memory_next_fit(memory *mem, const char p_id, const int p_mem) {
 */
 void add_memory_best_fit(memory *mem, const char p_id, const int p_mem) {
 
+	if(!enough_memory(mem, p_mem)) {
+		printf("not enough storage for %c, moving to next process\n", p_id);
+		return;
+	}
 }
 
 /*	worst fit memory algorithm. process is placed in the largest
@@ -111,4 +187,63 @@ void print_memory(memory *mem) {
 			printf("\n");
 	}
 	printf("================================\n");
+}
+
+void init_value(process_values *pval, const char p_id, const int start, const int size) {
+	pval->start = start;
+	pval->size = size;
+	pval->id = p_id;
+}
+
+void edit_value(memory *mem, const char p_id, const int start, const int size) {
+	process_values pval;
+	get_value(mem, p_id, &pval);
+
+	if(pval.id == p_id) {
+		pval.start = start;
+		pval.size = start;
+	}
+}
+
+void get_value(memory *mem, const char p_id, process_values *pval) {
+	int i;
+	bool found = false;
+	for(i = 0; i < mem->stored_procs; i++) {
+		if(mem->values[i].id == p_id) {
+			init_value(pval, p_id, mem->values[i].start, mem->values[i].size);
+			return;
+		}
+	}
+	if(!found)
+		init_value(pval, '\0', -1, -1);
+}
+
+void print_value(const process_values *pval) {
+	printf("%c: starts at %d, with a size of %d\n", pval->id, pval->start, pval->size);
+}
+
+void print_values(const memory *mem) {
+	int i;
+	printf("print values\n");
+	for(i = 0; i < mem->stored_procs; i++) {
+		print_value(&(mem->values[i]));
+	}
+}
+
+void remove_value(memory *mem, const char p_id) {
+	bool found = false;
+	int i;
+	for(i = 0; i < mem->stored_procs; i++) {
+		if(mem->values[i].id == p_id) {
+			found = true;
+		}
+		if(found && i < mem->stored_procs-1) {
+			mem->values[i] = mem->values[i+1];
+		} 
+		else if(i == mem->stored_procs-1) {
+			init_value(&(mem->values[i]), ' ', 0, 0);
+		}
+	}
+	if(found)
+		mem->stored_procs -= 1;
 }
