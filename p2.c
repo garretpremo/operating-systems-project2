@@ -11,6 +11,8 @@
 
 #define t_memmove 1
 
+// void simulate_contiguous_next_fit(process_list *proclist);
+
 void test_memory();
 void parse(const char *filename, process_list *proclist);
 
@@ -29,14 +31,23 @@ int main(int argc, char *argv[]) {
 	// parse the input file
 	parse(argv[1], &proclist);
 
+	print_process_list(&proclist);
 	// test
-	test_memory();
+	// test_memory();
 
 	// print_process_list(&proclist);
 	free_process_list(&proclist);
 
 	return EXIT_SUCCESS;
 }
+
+// void simulate_contiguous_next_fit(process_list *proclist) {
+// 	int time = 0;
+// 	int i;
+// 	for(i = 0; i < proclist.size; i++) {
+
+// 	}
+// }
 
 void test_memory() {
 	// initialize memory
