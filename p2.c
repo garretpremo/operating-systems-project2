@@ -9,9 +9,13 @@
 #define FRAMES 32
 #define LINES 8
 
-#define t_memmove 1
+char *NON_CONTIGUOUS = "Non-contiguous";
+char *CONTIGUOUS = "Contiguous";
+char *NEXT_FIT = "Next-Fit";
+char *BEST_FIT = "Best-Fit";
+char *WORST_FIT = "Worst-Fit";
 
-// void simulate_contiguous_next_fit(process_list *proclist);
+void simulate_contiguous_next_fit(process_list *proclist);
 
 void test_memory();
 void parse(const char *filename, process_list *proclist);
@@ -31,9 +35,10 @@ int main(int argc, char *argv[]) {
 	// parse the input file
 	parse(argv[1], &proclist);
 
-	print_process_list(&proclist);
 	// test
 	// test_memory();
+	simulate_contiguous_next_fit(&proclist);
+
 
 	// print_process_list(&proclist);
 	free_process_list(&proclist);
@@ -41,18 +46,31 @@ int main(int argc, char *argv[]) {
 	return EXIT_SUCCESS;
 }
 
-// void simulate_contiguous_next_fit(process_list *proclist) {
-// 	int time = 0;
-// 	int i;
-// 	for(i = 0; i < proclist.size; i++) {
+void simulate_contiguous_next_fit(process_list *proclist) {
+	int t = 0;
 
-// 	}
-// }
+	int i;
+
+	memory m;
+	init_memory(&m, proclist->size);
+
+	printf("time %dms: Simulator started (%s -- %s)\n", t, CONTIGUOUS, NEXT_FIT);
+	qsort(proclist->processes, proclist->size, sizeof(process), 
+				compare_process_by_start_then_id);
+	for(i = 0; i < proclist->size; i++) {
+		t += add_memory_next_fit(&m, t, proclist->processes[i].id, proclist->processes[i].mem);
+		
+	}
+
+	// clean up
+	free_memory(&m);
+}
 
 void test_memory() {
 	// initialize memory
 	memory m;
-	init_memory(&m);
+	// arbitrarily large number of processes
+	init_memory(&m, 100);
 
 	int t = 0;
 
@@ -61,11 +79,11 @@ void test_memory() {
 	print_memory(&m);	
 
 	// test add_memory_next_fit
-	add_memory_next_fit(&m, t, 'C', 110);
-	add_memory_next_fit(&m, t, 'E', 10);
-	add_memory_next_fit(&m, t, 'B', 110);
-	add_memory_next_fit(&m, t, 'A', 15);
-	add_memory_next_fit(&m, t, 'D', 9);
+	add_memory_next_fit(&m, t, 'A', 35);
+	add_memory_next_fit(&m, t, 'B', 28);
+	add_memory_next_fit(&m, t, 'C', 58);
+	add_memory_next_fit(&m, t, 'A', 35);
+	add_memory_next_fit(&m, t, 'C', 58);
 
 
 	// test remove_memory
@@ -152,6 +170,8 @@ void parse(const char *filename, process_list *proclist) {
 					// copy data over
 					copy_process_into_process_list(proclist, &p);
 
+					new_process(&p);
+
 					// reset memory
 					free(mem);
 					mem = (char *)calloc(mem_max_size, sizeof(char));
@@ -169,6 +189,8 @@ void parse(const char *filename, process_list *proclist) {
 				}
 				else {
 					copy_string_into_process(&p, process, process_size);
+
+					copy_process_into_process_list(proclist, &p);
 
 					// reset process
 					free(process);
@@ -215,7 +237,6 @@ void parse(const char *filename, process_list *proclist) {
 	// cleanup	
 	fclose(f);
 
-	free_process(&p);
 	free(process);
 	free(mem);
 	free(num_procs);

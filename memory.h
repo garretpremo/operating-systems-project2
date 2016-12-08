@@ -36,7 +36,7 @@ struct process_vals {
 	char id;
 };
 
-void init_memory(memory *mem);
+void init_memory(memory *mem, const int process_count);
 void free_memory(memory *mem);
 void copy_memory(memory *mem, const char p_id, const int start, const int end);
 void remove_memory(memory *mem, const char p_id);
@@ -47,10 +47,10 @@ int memory_end(memory *mem, const char p_id);
 bool enough_memory(const memory *mem, const int p_mem);
 
 /* defragmentation */
-void defragment_memory(memory *mem);
+int defragment_memory(memory *mem);
 
 /* algorithms */
-void add_memory_next_fit(memory *mem, int t, const char p_id, const int p_mem);
+int add_memory_next_fit(memory *mem, int t, const char p_id, const int p_mem);
 void add_memory_best_fit(memory *mem, int t, const char p_id, const int p_mem);
 void add_memory_worst_fit(memory *mem, int t, const char p_id, const int p_mem);
 

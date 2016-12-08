@@ -7,11 +7,14 @@
 #include "memory.h"
 #include "util.h"
 
+#define t_memmove 1
+
 pthread_mutex_t mutex;
 
-void init_memory(memory *mem) {
+void init_memory(memory *mem, const int process_count) {
 	mem->data = (char *)calloc(TOTAL_MEMORY, sizeof(char));
 	memset(mem->data, '.', TOTAL_MEMORY);
+	mem->values = calloc(process_count, sizeof(process_values));
 	mem->stored_procs = 0;
 	mem->total_storage = TOTAL_MEMORY;
 	mem->free_storage = mem->total_storage;
@@ -73,11 +76,15 @@ bool enough_memory(const memory *mem, const int p_mem) {
 	return p_mem <= mem->free_storage;
 }
 
-/*	defragments memory  */
-void defragment_memory(memory *mem) {
+/*	defragments memory  
+
+	return: the amount of time it took to defragment
+*/
+int defragment_memory(memory *mem) {
 	pthread_mutex_lock(&mutex);
 	int i;
 	int blank_space = 0;
+	int moved_frames = 0;
 	int max_end = 0;
 	for(i = 0; i < mem->total_storage; i++) {
 		if(mem->data[i] == '.')
@@ -93,11 +100,13 @@ void defragment_memory(memory *mem) {
 			copy_memory(mem, '.', start + used, i+used);
 			i = start + used;
 			i--;
+			moved_frames += blank_space;
 			blank_space = 0;
 		}
 	}
 	mem->most_recent_i = max_end;
 	pthread_mutex_unlock(&mutex);
+	return moved_frames * t_memmove;
 }
 
 /* 	next fit memory algorithm. process is placed in the first
@@ -106,8 +115,9 @@ void defragment_memory(memory *mem) {
 	memory: the data structure containing memory
 	p_id: the id of the process that needs to store memory
 	p_mem: the amount of memory the process needs
+	return: the amount of time it took to add the memory
 */
-void add_memory_next_fit(memory *mem, int t, const char p_id, const int p_mem) {
+int add_memory_next_fit(memory *mem, int t, const char p_id, const int p_mem) {
 	int scanned = 0;
 	int free_mem = 0;
 	int max_partition_size = 0;
@@ -117,7 +127,7 @@ void add_memory_next_fit(memory *mem, int t, const char p_id, const int p_mem) {
 
 	if(!enough_memory(mem, p_mem)) {
 		printf("time %dms: not enough storage for %c, moving to next process\n", t, p_id);
-		return;
+		return 0;
 	}
 
 	int i;
@@ -145,11 +155,12 @@ void add_memory_next_fit(memory *mem, int t, const char p_id, const int p_mem) {
 	if(stored) {
 		printf("time %dms: Placed process %c:\n", t, p_id);
 		print_memory(mem);
+		return 0;
 	}
-	else if(max_partition_size < p_mem) {
+	else {
 		printf("time %dms: no sufficient partition size; defragmenting\n", t);
-		defragment_memory(mem);
-		add_memory_next_fit(mem, t, p_id, p_mem);
+		int defrag_time = defragment_memory(mem);
+		return defrag_time + add_memory_next_fit(mem, t, p_id, p_mem);
 	}
 }
 
